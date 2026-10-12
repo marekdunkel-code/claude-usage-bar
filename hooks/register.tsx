@@ -43,7 +43,7 @@ export const register: Register = on => {
   // cache: sumy z całej sesji (zerują się przy przeładowaniu moda)
   const c: Cache = { read: 0, total: 0, last: null }
   // ostrzeżenia: każde raz po przekroczeniu progu, znów dopiero po zejściu poniżej
-  const warned = { ctx: false, five: false, week: false }
+  const warned = { half: false, ctx: false, five: false, week: false }
 
   on('session.start', async ($, e, next) => {
     $.ui.toast('usage-bar załadowany')
@@ -73,10 +73,12 @@ export const register: Register = on => {
     const five = e.rateLimits.find(l => l.kind === 'five_hour')?.percentUsed ?? 0
     const week = e.rateLimits.find(l => l.kind === 'seven_day')?.percentUsed ?? 0
 
+    if (ctxPct >= 50 && !warned.half) $.ui.toast(`Kontekst ${Math.round(ctxPct)}% — kliknij „Kompaktuj” na pasku lub wpisz /compact`)
     if (ctxPct >= 85 && !warned.ctx) $.ui.toast(`Kontekst ${Math.round(ctxPct)}% — rozważ /compact lub nową sesję`)
     if (five >= 80 && !warned.five) $.ui.toast(`Limit 5h: ${Math.round(five)}% zużyte`)
     if (week >= 80 && !warned.week) $.ui.toast(`Limit tygodniowy: ${Math.round(week)}% zużyte`)
 
+    warned.half = ctxPct >= 50
     warned.ctx = ctxPct >= 85
     warned.five = five >= 80
     warned.week = week >= 80
@@ -97,7 +99,16 @@ export const register: Register = on => {
     }
 
     const now = await $.clock.now()
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Button, Text } = $.ui.resolve(e)
+
+    const compact = async () => {
+      try {
+        const r = await $.session.compact()
+        $.ui.toast('skip' in r ? 'Kompaktowanie pominięte' : 'Kontekst skompaktowany')
+      } catch {
+        $.ui.toast('Nie można kompaktować w trakcie odpowiedzi — spróbuj po jej zakończeniu')
+      }
+    }
 
     const limit = (label: string, kind: string) => {
       const l: Limit | undefined = s.limits.find(x => x.kind === kind)
@@ -128,6 +139,10 @@ export const register: Register = on => {
         {week ? <Text dimColor>{'  │  '}</Text> : null}
         {week}
         {s.usd === null ? null : <Text dimColor>{`  │  $${s.usd.toFixed(2)}`}</Text>}
+        {s.ctxPercent !== null && s.ctxPercent >= 50 ? <Text dimColor>{'  │  '}</Text> : null}
+        {s.ctxPercent !== null && s.ctxPercent >= 50 ? (
+          <Button key="compact" label="Kompaktuj" onPress={compact} />
+        ) : null}
       </Box>
     )
   })
