@@ -1,0 +1,1 @@
+{ "name": "usage-bar", "version": "0.2.0", "description": "Pasek nad polem wpisywania: kontekst, cache, limit 5h i limit tygodniowy.", "types": "./types/index.d.ts" }
