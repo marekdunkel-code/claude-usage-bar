@@ -46,6 +46,7 @@ export const register: Register = on => {
   const warned = { ctx: false, five: false, week: false }
 
   on('session.start', async ($, e, next) => {
+    $.ui.toast('usage-bar załadowany')
     await refresh($, c)
     return next(e)
   })
@@ -85,7 +86,15 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const s = await read($, snapAtom)
-    if (s === null || e.props.hasSurvey) return next(e)
+    if (e.props.hasSurvey) return next(e)
+    if (s === null) {
+      const { Box: B, Text: T } = $.ui.resolve(e)
+      return (
+        <B>
+          <T dimColor>usage-bar: czekam na pierwsze dane…</T>
+        </B>
+      )
+    }
 
     const now = await $.clock.now()
     const { Box, Text } = $.ui.resolve(e)
