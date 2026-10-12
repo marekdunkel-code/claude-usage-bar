@@ -42,6 +42,8 @@ async function refresh($: EngineInterface, c: Cache) {
 export const register: Register = on => {
   // cache: sumy z całej sesji (zerują się przy przeładowaniu moda)
   const c: Cache = { read: 0, total: 0, last: null }
+  // ostrzeżenia: każde raz po przekroczeniu progu, znów dopiero po zejściu poniżej
+  const warned = { ctx: false, five: false, week: false }
 
   on('session.start', async ($, e, next) => {
     await refresh($, c)
@@ -65,6 +67,19 @@ export const register: Register = on => {
 
   on('session.measure', async ($, e, next) => {
     await refresh($, c)
+
+    const ctxPct = e.context.percent ?? 0
+    const five = e.rateLimits.find(l => l.kind === 'five_hour')?.percentUsed ?? 0
+    const week = e.rateLimits.find(l => l.kind === 'seven_day')?.percentUsed ?? 0
+
+    if (ctxPct >= 85 && !warned.ctx) $.ui.toast(`Kontekst ${Math.round(ctxPct)}% — rozważ /compact lub nową sesję`)
+    if (five >= 80 && !warned.five) $.ui.toast(`Limit 5h: ${Math.round(five)}% zużyte`)
+    if (week >= 80 && !warned.week) $.ui.toast(`Limit tygodniowy: ${Math.round(week)}% zużyte`)
+
+    warned.ctx = ctxPct >= 85
+    warned.five = five >= 80
+    warned.week = week >= 80
+
     return next(e)
   })
 
